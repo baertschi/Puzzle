@@ -15,6 +15,3 @@
 # Qt Creator project files
 *.pro
 *.pro.user
-
-# Executable folder
-Puzzle-build-desktop/
