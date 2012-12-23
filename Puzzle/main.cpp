@@ -90,40 +90,107 @@ int main(int argc, char *argv[])
         cv::polylines(imgCont, &p, &n, 1, true, cv::Scalar(0,255,255), 2, CV_AA);
     }
 
-    std::vector<std::vector<cv::Point> > corners;
-
-    unsigned int number = 3;
-    std::fstream datei("contour3_angle.txt", std::ios::out);
 
     // Ecken erkennen
+    std::vector<std::vector<cv::Point> > corners;
+    corners.clear();
+
     for(unsigned int i = 0; i < contours.size(); i++)
     {
+        corners.push_back(std::vector<cv::Point>());
         for(unsigned int j = 0; j < pointsApprox[i].size(); j++)
         {
             // Winkel berechnen zwischen diesem und den zwei nächsten Vertices.
             double cosine = std::fabs(angle(pointsApprox[i][(j+2)%pointsApprox[i].size()], pointsApprox[i][j], pointsApprox[i][(j+1)%pointsApprox[i].size()]));
 
-            if(i == number)
-            {
-                datei << pointsApprox[number][j].x << '\t' << pointsApprox[number][j].y << '\t' << cosine << std::endl;
-            }
+            // in datei abspeichern
+            //datei << pointsApprox[number][j].x << '\t' << pointsApprox[number][j].y << '\t' << cosine << std::endl;
 
+            // wenn Winkel > 81°, als Ecke abspeichern und visuell markieren
             if(cosine < 0.15)
             {
-                //corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]);
-                std::cout << "figure " << i << ": " << pointsApprox[i][(j+1)%pointsApprox[i].size()].x << ' ' << pointsApprox[i][(j+1)%pointsApprox[i].size()].y << std::endl;
+                corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]);
+                //std::cout << "figure " << i << ": " << pointsApprox[i][(j+1)%pointsApprox[i].size()].x << ' ' << pointsApprox[i][(j+1)%pointsApprox[i].size()].y << std::endl;
                 cv::ellipse(imgCont, pointsApprox[i][(j+1)%pointsApprox[i].size()], cv::Size(10,10), 0, 0, 360, cv::Scalar(0,0,255), 2, CV_AA);
             }
         }
     }
 
-    datei.close();
+    // achtung: wüüüüüüüst.
+    // Konturen zerschneiden in jeweils vier Teilkonturen,
+    // welche die vier Seitenwände des Puzzleteils darstellen.
+    // Es wird wieder die ganze Kontur verwendet (nicht die approximierte):
+    // jeder Punkt wird mit den vorher ermittelten Eckpunkten verglichen.
+    // Bei einer Übereinstimmung wird der anschliessende Bereich bis zum
+    // nächsten Eckpunkt als wand definiert.
+    // Da die Eckpunkte in der gleichen Reihenfolge gesucht wurden wie die
+    // Konturen, muss nicht jeder Punkt der Kontur mit jedem der vier Eckpunkte
+    // verglichen werden, sondern ab dem auftreten des Eckpunktes 0 jeweils
+    // einfach der Reihe nach.
+    std::vector<std::vector<std::vector<cv::Point> > > sides;
+    for(unsigned int i = 0; i < contours.size(); i++)
+    {
+        sides.push_back(std::vector<std::vector<cv::Point> >());
+        int corner_counter = 0;
+
+        // jeden Punkt der Kontur durchgehen und nach den Eckpunkten suchen
+        bool corner_found = false;
+        int j = 0;
+        do
+        {
+            if(contours[i][j] == corners[i][corner_counter%4])
+            {
+                if(corner_found && corner_counter == 4)
+                {
+                    // Wenn schon einmal rund herum, abbrechen
+                    break;
+                }
+
+                corner_found = true;
+                corner_counter++;   // ab jetzt nach dem nächsten Eckpunkt suchen
+                sides[i].push_back(std::vector<cv::Point>());
+                sides[i][corner_counter - 1].push_back(contours[i][j]);
+            }
+            else
+            {
+                if(corner_found)
+                {
+                    sides[i][corner_counter - 1].push_back(contours[i][j]);
+                }
+            }
+
+            j++;
+            j %= contours[i].size();
+        }
+        while(corner_counter < 5);
+    }
+
+    // Vergleich von walls[0][0] mit den anderen Puzzleteilen.
+    // Gleichheit-abhängiges Zeichnen der Teil-Konturen
+    cv::Mat imgContSimilar = cv::Mat::zeros(img.size(), CV_8UC3);
+    std::vector<std::vector<cv::Point> > pointTemp;
+    pointTemp = sides[0];
+    cv::drawContours(imgContSimilar, pointTemp, 0, cv::Scalar(0,0,255), 10, 8);
+    std::cout << std::endl << "Puzzle piece 0, side 0 compared to:" << std::endl;
+    for(unsigned int i = 1; i < sides.size(); i++)
+    {
+        for(unsigned int j = 0; j < 4; j++)
+        {
+            double result = cv::matchShapes(cv::Mat(sides[0][0]), cv::Mat(sides[i][j]), CV_CONTOURS_MATCH_I3, 0);
+            std::cout << "Puzzle piece " << i << ", side " << j << ": " << result << std::endl;
+            cv::Scalar color = cv::Scalar(255/2.5*result,255/2.5*result,255/2.5*result);
+            pointTemp = sides[i];
+            cv::drawContours(imgContSimilar, pointTemp, j, color, 10, 8);
+        }
+    }
 
     // Fenster erstellen
     cv::namedWindow("Kontur", 0);
+    cv::namedWindow("Aehnlichkeit", 0);
 
     // Bild anzeigen
     cv::imshow("Kontur", imgCont);
+    cv::imshow("Aehnlichkeit", imgContSimilar);
 
     // Warten auf einen Tastendruck
     cv::waitKey(0);
