@@ -14,4 +14,4 @@
 
 # Qt Creator project files
 *.pro
-*.pro.user
+*.pro.user*
