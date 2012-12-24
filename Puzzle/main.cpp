@@ -176,9 +176,9 @@ int main(int argc, char *argv[])
     {
         for(unsigned int j = 0; j < 4; j++)
         {
-            double result = cv::matchShapes(cv::Mat(sides[0][0]), cv::Mat(sides[i][j]), CV_CONTOURS_MATCH_I3, 0);
+            double result = 1/cv::matchShapes(cv::Mat(sides[0][0]), cv::Mat(sides[i][j]), CV_CONTOURS_MATCH_I3, 0);
             std::cout << "Puzzle piece " << i << ", side " << j << ": " << result << std::endl;
-            cv::Scalar color = cv::Scalar(255/2.5*result,255/2.5*result,255/2.5*result);
+            cv::Scalar color = cv::Scalar(255/5*result,255/5*result,255/5*result);
             pointTemp = sides[i];
             cv::drawContours(imgContSimilar, pointTemp, j, color, 10, 8);
         }
