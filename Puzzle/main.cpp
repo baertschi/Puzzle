@@ -166,6 +166,22 @@ int main(int argc, char *argv[])
     }
 
     // Vergleich von walls[0][0] mit den anderen Puzzleteilen.
+    std::vector<std::vector<double> > results;
+    for(unsigned int i = 0; i < sides.size(); i++)
+    {
+        results.push_back(std::vector<double>());
+    }
+
+    double maxResult;
+    for(unsigned int i = 1; i < sides.size(); i++)
+    {
+        for(unsigned int j = 0; j < 4; j++)
+        {
+            results[i].push_back(1/cv::matchShapes(cv::Mat(sides[0][0]), cv::Mat(sides[i][j]), CV_CONTOURS_MATCH_I3, 0));
+            maxResult = std::max(maxResult, results[i][j]);
+        }
+    }
+
     // Gleichheit-abhängiges Zeichnen der Teil-Konturen
     cv::Mat imgContSimilar = cv::Mat::zeros(img.size(), CV_8UC3);
     std::vector<std::vector<cv::Point> > pointTemp;
@@ -176,14 +192,12 @@ int main(int argc, char *argv[])
     {
         for(unsigned int j = 0; j < 4; j++)
         {
-            double result = 1/cv::matchShapes(cv::Mat(sides[0][0]), cv::Mat(sides[i][j]), CV_CONTOURS_MATCH_I3, 0);
-            std::cout << "Puzzle piece " << i << ", side " << j << ": " << result << std::endl;
-            cv::Scalar color = cv::Scalar(255/5*result,255/5*result,255/5*result);
+            cv::Scalar color = cv::Scalar(255/maxResult*results[i][j],255/maxResult*results[i][j],255/maxResult*results[i][j]);
             pointTemp = sides[i];
             cv::drawContours(imgContSimilar, pointTemp, j, color, 10, 8);
+            std::cout << "Puzzle piece " << i << ", side " << j << ": " << results[i][j] << std::endl;
         }
     }
-
     // Fenster erstellen
     cv::namedWindow("Kontur", 0);
     cv::namedWindow("Aehnlichkeit", 0);
