@@ -15,6 +15,17 @@ double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
     return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
 }
 
+static void onMouse( int event, int x, int y, int, std::vector<cv::Point > cont )
+{
+    // Nur linke Maustaste abfragen
+    if( event != CV_EVENT_LBUTTONDOWN )
+    {
+        return;
+    }
+    std::cout << "Button Cklick" << x << y << std::endl;
+
+}
+
 int main(int argc, char *argv[])
 {
     // wenn kein argument mit dem Dateinamen mitgegeben wird:
@@ -40,6 +51,9 @@ int main(int argc, char *argv[])
         // cv::DestroyAllWindows();
         return 0;
     }
+    // Originalbild anzeigen
+    cv::namedWindow("original", 0);
+    cv::imshow("original", img);
 
     // Grauwert Bild erzeugen
     cv::Mat imgGrey;
@@ -193,6 +207,8 @@ int main(int argc, char *argv[])
         }
         while(corner_counter < 5);
     }
+    // Mouse einlesen und geklickte Seitenwand bestimmen
+    cv::setMouseCallback( "original", onMouse, 0, &contours );
 
     // Vergleich von walls[0][0] mit den anderen Puzzleteilen.
     std::vector<std::vector<double> > results;
