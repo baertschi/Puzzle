@@ -185,10 +185,9 @@ int main(int argc, char *argv[])
         sideCentroids.push_back(std::vector<cv::Point>());
         for(unsigned int j = 0; j < 4; j++)
         {
-            sideCentroids[i].push_back(cv::Point());
             cv::RotatedRect minRect;
             minRect = cv::minAreaRect(sides[i][j]);
-            sideCentroids[i][j] = minRect.center;
+            sideCentroids[i].push_back(minRect.center);
         }
     }
 
@@ -201,19 +200,44 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Gender finden
+    std::vector<std::vector<bool> > genders;
+    for(unsigned int i = 0; i < sideCentroids.size(); i++)
+    {
+        genders.push_back(std::vector<bool>());
+        for(unsigned int j = 0; j < 4; j++)
+        {
+            // wenn innerhalb des Grundrechtecks, Gender = Negativ, ansonsten Gender = Positiv
+            genders[i].push_back(!cv::pointPolygonTest(cv::Mat(corners[i]), sideCentroids[i][j], false));
+        }
+    }
+
+    // Seitenwände noch glätten bevor sie der Funktion matchShape übergeben werden
+    std::vector<std::vector<std::vector<cv::Point> > > sidesFiltered;
+    std::vector<cv::Point> sidesFilteredTemp;
+    for(unsigned int i = 0; i < sides.size(); i++)
+    {
+        sidesFiltered.push_back(std::vector<std::vector<cv::Point> >());
+        for(unsigned int j = 0; j < sides[i].size(); j++)
+        {
+            cv::approxPolyDP(cv::Mat(sides[i][j]), sidesFilteredTemp, 2, false);
+            sidesFiltered[i].push_back(sidesFilteredTemp);
+        }
+    }
+
     // Vergleich von walls[0][0] mit den anderen Puzzleteilen.
     std::vector<std::vector<double> > results;
-    for(unsigned int i = 0; i < sides.size(); i++)
+    for(unsigned int i = 0; i < sidesFiltered.size(); i++)
     {
         results.push_back(std::vector<double>());
     }
 
     double maxResult;
-    for(unsigned int i = 1; i < sides.size(); i++)
+    for(unsigned int i = 1; i < sidesFiltered.size(); i++)
     {
         for(unsigned int j = 0; j < 4; j++)
         {
-            results[i].push_back(1/cv::matchShapes(cv::Mat(sides[0][0]), cv::Mat(sides[i][j]), CV_CONTOURS_MATCH_I3, 0));
+            results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[0][0]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
             maxResult = std::max(maxResult, results[i][j]);
         }
     }
@@ -221,15 +245,15 @@ int main(int argc, char *argv[])
     // Gleichheit-abhängiges Zeichnen der Teil-Konturen
     cv::Mat imgContSimilar = cv::Mat::zeros(img.size(), CV_8UC3);
     std::vector<std::vector<cv::Point> > pointTemp;
-    pointTemp = sides[0];
+    pointTemp = sidesFiltered[0];
     cv::drawContours(imgContSimilar, pointTemp, 0, cv::Scalar(0,0,255), 10, 8);
     std::cout << std::endl << "Puzzle piece 0, side 0 compared to:" << std::endl;
-    for(unsigned int i = 1; i < sides.size(); i++)
+    for(unsigned int i = 1; i < sidesFiltered.size(); i++)
     {
         for(unsigned int j = 0; j < 4; j++)
         {
             cv::Scalar color = cv::Scalar(255/maxResult*results[i][j],255/maxResult*results[i][j],255/maxResult*results[i][j]);
-            pointTemp = sides[i];
+            pointTemp = sidesFiltered[i];
             cv::drawContours(imgContSimilar, pointTemp, j, color, 10, 8);
             std::cout << "Puzzle piece " << i << ", side " << j << ": " << results[i][j] << std::endl;
         }
