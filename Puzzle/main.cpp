@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <time.h>
 
 // Helper Funktion:
 // Cosinus des Zwischenwinkels von Vektor pt0->pt1 und Vektor pt0->pt2
@@ -13,6 +14,21 @@ double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
     double dx2 = pt2.x - pt0.x;
     double dy2 = pt2.y - pt0.y;
     return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
+}
+
+int edge_distributed_rnd()
+{
+    static cv::RNG rng(time(NULL));
+    double value = float(rng);
+
+    if(value > 0.5)
+    {
+        return 255*(std::sqrt((value-0.5)/2) + 0.5);
+    }
+    else
+    {
+        return 255*(-std::sqrt((0.5-value)/2) + 0.5);
+    }
 }
 
 static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Point > cont */)
@@ -38,7 +54,8 @@ int main(int argc, char *argv[])
 
     // Bild laden
     cv::Mat img = cv::imread(filename);
-    // Wen kein Bild gelesen wurde, programm beenden
+
+    // Wenn kein Bild gelesen wurde, programm beenden
     if(img.data == NULL)
     {
         cv::namedWindow("Error", 0);
@@ -48,9 +65,10 @@ int main(int argc, char *argv[])
         cv::waitKey(0);
 
         // wär gloub no suber weme d fänster würd destroye, het aber d funktion nid kennt
-        // cv::DestroyAllWindows();
+        // cv::destroyAllWindows();
         return 0;
     }
+
     // Originalbild anzeigen
     cv::namedWindow("original", 0);
     cv::imshow("original", img);
@@ -78,9 +96,9 @@ int main(int argc, char *argv[])
     cv::Mat imgBin;
     cv::threshold(imgGreyBlur, imgBin, cv::mean(imgGreyBlur)[0]-10, 255, cv::THRESH_BINARY);
 
-   // cv::adaptiveThreshold(imgGreyBlur, imgBin,255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,2001,10);
-    cv::namedWindow("bin", 0);                  // Für debugging
-    cv::imshow("bin", imgBin);                  // Für debugging
+    //cv::adaptiveThreshold(imgGreyBlur, imgBin,255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,2001,10);
+    //cv::namedWindow("bin", 0);                  // Für debugging
+    //cv::imshow("bin", imgBin);                  // Für debugging
 
     // Entrauschen: 2x öffnen mit 3x3 Kernel
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3), cv::Point(1, 1));
@@ -108,13 +126,22 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Zeichnen jeder Kontur
-    cv::Mat imgCont = img.clone();
-    //cv::RNG rng(12345);
+    // Zeichnen des Binärbildes mit unterschiedlich gefärbten Puzzleteilen
+    cv::cvtColor(imgBin, imgBin, CV_GRAY2BGR);
+
     for(unsigned int i = 0; i< contours.size(); i++)
     {
-        //cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));   // zufallsfarben
-        cv::Scalar color = cv::Scalar(255,50,0);
+        cv::Scalar color = CV_RGB(edge_distributed_rnd(), edge_distributed_rnd(), edge_distributed_rnd());
+        cv::drawContours(imgBin, contours, i, color, -1, 8);
+    }
+    cv::namedWindow("Binär", 0);
+    cv::imshow("Binär", imgBin);
+
+    // Zeichnen jeder Kontur
+    cv::Mat imgCont = img.clone();
+    for(unsigned int i = 0; i< contours.size(); i++)
+    {
+        cv::Scalar color = CV_RGB(0,50,255);
         cv::drawContours(imgCont, contours, i, color, 4, 8);
     }
 
@@ -129,7 +156,7 @@ int main(int argc, char *argv[])
         // gefilterte Kontur zeichnen
         const cv::Point* p = &pointsApprox[i][0];
         int n = (int)pointsApprox[i].size();
-        cv::polylines(imgCont, &p, &n, 1, true, cv::Scalar(0,255,255), 2, CV_AA);
+        cv::polylines(imgCont, &p, &n, 1, true, CV_RGB(255,255,0), 2, CV_AA);
     }
 
 
@@ -157,7 +184,7 @@ int main(int argc, char *argv[])
     // Grundrechteck zeichnen
     for(unsigned int i = 0; i < contours.size(); i++)
     {
-        cv::Scalar color = cv::Scalar(0,100,0);
+        cv::Scalar color = CV_RGB(0,100,0);
         cv::drawContours(imgCont, corners, i, color, 5, CV_AA);
     }
 
@@ -166,7 +193,7 @@ int main(int argc, char *argv[])
     {
         for(unsigned int j = 0; j < corners[i].size(); j++)
         {
-            cv::circle(imgCont, corners[i][j], 8, cv::Scalar(0,0,255), 2, CV_AA);
+            cv::circle(imgCont, corners[i][j], 8, CV_RGB(255,0,0), 2, CV_AA);
         }
     }
 
@@ -218,8 +245,6 @@ int main(int argc, char *argv[])
         }
         while(corner_counter < 5);
     }
-    // Mouse einlesen und geklickte Seitenwand bestimmen
-    cv::setMouseCallback( "original", onMouse, 0/*, &contours */ );
 
     // Seitenwandschwerpunkte finden
     // (eigentlich kein Schwerpunkt, sondern der Mittelpunkt des
@@ -241,19 +266,28 @@ int main(int argc, char *argv[])
     {
         for(unsigned int j = 0; j < sideCentroids[i].size(); j++)
         {
-            cv::circle(imgCont, sideCentroids[i][j], 5, cv::Scalar(0,255,255), CV_FILLED, CV_AA);
+            cv::circle(imgCont, sideCentroids[i][j], 5, CV_RGB(255,255,0), CV_FILLED, CV_AA);
         }
     }
 
-    // Gender finden
-    std::vector<std::vector<bool> > genders;
+    // Gender finden: positiv = 1, negativ = -1, neutral = 0
+    std::vector<std::vector<int> > genders;
     for(unsigned int i = 0; i < sideCentroids.size(); i++)
     {
-        genders.push_back(std::vector<bool>());
+        genders.push_back(std::vector<int>());
         for(unsigned int j = 0; j < 4; j++)
         {
-            // wenn innerhalb des Grundrechtecks, Gender = Negativ, ansonsten Gender = Positiv
-            genders[i].push_back(!cv::pointPolygonTest(cv::Mat(corners[i]), sideCentroids[i][j], false));
+            double dist = cv::pointPolygonTest(cv::Mat(corners[i]), sideCentroids[i][j], true);
+            if(std::fabs(dist) < 5)
+            {
+                // wenn praktisch auf der Linie -> wir als gerade Kannte angenommen = Peutral
+                genders[i].push_back(0);
+            }
+            else
+            {
+                // wenn innerhalb des Grundrechtecks, Gender = Negativ, ansonsten Gender = Positiv
+                genders[i].push_back(dist < 0? 1 : -1);
+            }
         }
     }
 
@@ -270,39 +304,78 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Vergleich von walls[0][0] mit den anderen Puzzleteilen.
+
+    // Mouse einlesen und geklickte Seitenwand bestimmen
+    cv::setMouseCallback( "original", onMouse, 0/*, &contours */ );
+
+
+    // Vergleich von sides[0][0] mit den anderen Puzzleteilen.
+    const unsigned int puzzle = 3;
+    const unsigned int side = 2;
+    double maxResult = 0, minResult = 999999;
     std::vector<std::vector<double> > results;
     for(unsigned int i = 0; i < sidesFiltered.size(); i++)
     {
         results.push_back(std::vector<double>());
-    }
+        if(i == puzzle)
+        {
+            // wenn das basis-Puzzleteil dran ist, skippen.
+            continue;
+        }
 
-    double maxResult;
-    for(unsigned int i = 1; i < sidesFiltered.size(); i++)
-    {
         for(unsigned int j = 0; j < 4; j++)
         {
-            results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[0][0]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
-            maxResult = std::max(maxResult, results[i][j]);
+            if(genders[puzzle][side] + genders[i][j] == 0)
+            {
+                results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[puzzle][side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
+                maxResult = std::max(maxResult, results[i][j]);
+                minResult = std::min(minResult, results[i][j]);
+            }
+            else
+            {
+                // wenn Gender nicht übereinstimmt, Übereinstimmung = 0
+                results[i].push_back(0);
+            }
         }
     }
 
-    // Gleichheit-abhängiges Zeichnen der Teil-Konturen
+
+
+    // Zeichnen der Übereinstimmung: zuerst feine Konturen
     cv::Mat imgContSimilar = cv::Mat::zeros(img.size(), CV_8UC3);
-    std::vector<std::vector<cv::Point> > pointTemp;
-    pointTemp = sidesFiltered[0];
-    cv::drawContours(imgContSimilar, pointTemp, 0, cv::Scalar(0,0,255), 10, 8);
-    std::cout << std::endl << "Puzzle piece 0, side 0 compared to:" << std::endl;
-    for(unsigned int i = 1; i < sidesFiltered.size(); i++)
+    for(unsigned int i = 0; i < contours.size(); i++)
     {
+        cv::drawContours(imgContSimilar, contours, i, CV_RGB(30,30,30), 2, CV_AA);
+    }
+
+    // Zeichnen der Übereinstimmung
+    std::vector<std::vector<cv::Point> > temp;
+    temp = sidesFiltered[puzzle];
+    cv::drawContours(imgContSimilar, temp, side, CV_RGB(255,0,0), 10, 8);
+    std::cout << std::endl << "Puzzle piece " << puzzle << ", side " << side << " compared to:" << std::endl;
+    for(unsigned int i = 0; i < sidesFiltered.size(); i++)
+    {
+        if(i == puzzle)
+        {
+            // wenn das basis-Puzzleteil dran ist, skippen.
+            continue;
+        }
+
         for(unsigned int j = 0; j < 4; j++)
         {
-            cv::Scalar color = cv::Scalar(255/maxResult*results[i][j],255/maxResult*results[i][j],255/maxResult*results[i][j]);
-            pointTemp = sidesFiltered[i];
-            cv::drawContours(imgContSimilar, pointTemp, j, color, 10, 8);
-            std::cout << "Puzzle piece " << i << ", side " << j << ": " << results[i][j] << std::endl;
+            if(results[i][j] != 0)
+            {
+                // wenn das Puzzleteil überhaupt übereinstimmt, farbsensitiv Seitenwände zeichnen
+                temp = sidesFiltered[i];
+                double value = (results[i][j] - minResult) / (maxResult - minResult);
+                value = (255-50)*value + 50;
+                cv::Scalar color = CV_RGB(0, value, 0);
+                cv::drawContours(imgContSimilar, temp, j, color, 10, 8);
+                std::cout << "-> Puzzle piece " << i << ", side " << j << ": " << results[i][j] << std::endl;
+            }
         }
     }
+
     // Fenster erstellen
     cv::namedWindow("Kontur", 0);
     cv::namedWindow("Aehnlichkeit", 0);
