@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
@@ -14,6 +15,17 @@ double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
     return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
 }
 
+static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Point > cont */)
+{
+    // Nur linke Maustaste abfragen
+    if( event != CV_EVENT_LBUTTONDOWN )
+    {
+        return;
+    }
+    std::cout << "Button Cklick" << x << y << std::endl;
+
+}
+
 int main(int argc, char *argv[])
 {
     // wenn kein argument mit dem Dateinamen mitgegeben wird:
@@ -26,18 +38,49 @@ int main(int argc, char *argv[])
 
     // Bild laden
     cv::Mat img = cv::imread(filename);
+    // Wen kein Bild gelesen wurde, programm beenden
+    if(img.data == NULL)
+    {
+        cv::namedWindow("Error", 0);
+        img = cv::imread("Error.png");                  // Bild im Bin ordner hinzufügen
+        cv::imshow("Error", img);
+        std::cout << "Error: Can't read image" << std::endl;
+        cv::waitKey(0);
+
+        // wär gloub no suber weme d fänster würd destroye, het aber d funktion nid kennt
+        // cv::DestroyAllWindows();
+        return 0;
+    }
+    // Originalbild anzeigen
+    cv::namedWindow("original", 0);
+    cv::imshow("original", img);
 
     // Grauwert Bild erzeugen
     cv::Mat imgGrey;
     cv::cvtColor(img, imgGrey, CV_BGR2GRAY);
+    //cv::namedWindow("grey", 0);                 // Für debugging
+    //cv::imshow("grey", imgGrey);                // Für debugging
 
+/*    // Histogramm ausgleichen
+    cv::Mat imgGreyHist;
+    cv::equalizeHist(imgGrey,imgGreyHist);
+    cv::namedWindow("hist", 0);
+    cv::imshow("hist", imgGreyHist);
+*/
     // Weichzeichnen (vor-entrauschen)
     cv::Mat imgGreyBlur;
     cv::blur(imgGrey, imgGreyBlur, cv::Size(3,3));
+    //cv::namedWindow("blur", 0);                 // Für debugging
+    //cv::imshow("blur", imgGreyBlur);            // Für debugging
+
 
     // Binarisieren
     cv::Mat imgBin;
-    cv::threshold(imgGreyBlur, imgBin, 30, 255, cv::THRESH_BINARY);
+    cv::threshold(imgGreyBlur, imgBin, cv::mean(imgGreyBlur)[0]-10, 255, cv::THRESH_BINARY);
+
+   // cv::adaptiveThreshold(imgGreyBlur, imgBin,255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,2001,10);
+    cv::namedWindow("bin", 0);                  // Für debugging
+    cv::imshow("bin", imgBin);                  // Für debugging
 
     // Entrauschen: 2x öffnen mit 3x3 Kernel
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3), cv::Point(1, 1));
@@ -175,6 +218,8 @@ int main(int argc, char *argv[])
         }
         while(corner_counter < 5);
     }
+    // Mouse einlesen und geklickte Seitenwand bestimmen
+    cv::setMouseCallback( "original", onMouse, 0/*, &contours */ );
 
     // Seitenwandschwerpunkte finden
     // (eigentlich kein Schwerpunkt, sondern der Mittelpunkt des
@@ -268,4 +313,19 @@ int main(int argc, char *argv[])
 
     // Warten auf einen Tastendruck
     cv::waitKey(0);
+
+    // wär gloub no suber weme d fänster würd destroye, het aber d funktion nid kennt
+    // Fenster schliessen und Bilder "freigeben"
+    //cv::destroyAllWindows();
+    //cv::ReleaseImage(img);
+    //cv::ReleaseImage(imgContSimilar);
+    //cv::ReleaseImage(imgCont);
+    //cv::ReleaseImage(imgBinTemp);
+    //cv::ReleaseImage(imgBin);
+    //cv::ReleaseImage(kernel);
+    //cv::ReleaseImage(imgGrey);
+    //cv::ReleaseImage(imgGreyBlure);
+    //cv::ReleaseImage(imgGreyHist);
+
+
 }
