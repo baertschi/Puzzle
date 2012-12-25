@@ -15,7 +15,7 @@ double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
     return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
 }
 
-static void onMouse( int event, int x, int y, int, std::vector<cv::Point > cont )
+static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Point > cont */)
 {
     // Nur linke Maustaste abfragen
     if( event != CV_EVENT_LBUTTONDOWN )
@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
         while(corner_counter < 5);
     }
     // Mouse einlesen und geklickte Seitenwand bestimmen
-    cv::setMouseCallback( "original", onMouse, 0, &contours );
+    cv::setMouseCallback( "original", onMouse, 0/*, &contours */ );
 
     // Seitenwandschwerpunkte finden
     // (eigentlich kein Schwerpunkt, sondern der Mittelpunkt des
