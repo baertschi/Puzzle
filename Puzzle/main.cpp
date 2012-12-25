@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
+#include "cvpath2d.h"
 
 // Helper Funktion:
 // Cosinus des Zwischenwinkels von Vektor pt0->pt1 und Vektor pt0->pt2
@@ -79,12 +80,12 @@ int main(int argc, char *argv[])
     //cv::namedWindow("grey", 0);                 // Für debugging
     //cv::imshow("grey", imgGrey);                // Für debugging
 
-/*    // Histogramm ausgleichen
-    cv::Mat imgGreyHist;
-    cv::equalizeHist(imgGrey,imgGreyHist);
-    cv::namedWindow("hist", 0);
-    cv::imshow("hist", imgGreyHist);
-*/
+    // Histogramm ausgleichen
+    //cv::Mat imgGreyHist;
+    //cv::equalizeHist(imgGrey,imgGreyHist);
+    //cv::namedWindow("hist", 0);
+    //cv::imshow("hist", imgGreyHist);
+
     // Weichzeichnen (vor-entrauschen)
     cv::Mat imgGreyBlur;
     cv::blur(imgGrey, imgGreyBlur, cv::Size(3,3));
@@ -145,6 +146,7 @@ int main(int argc, char *argv[])
         cv::drawContours(imgCont, contours, i, color, 4, 8);
     }
 
+
     // Konturen filtern
     std::vector<std::vector<cv::Point> > pointsApprox;
     std::vector<cv::Point> pointApproxTemp;
@@ -176,7 +178,7 @@ int main(int argc, char *argv[])
             // wenn Winkel > 81°, als Ecke abspeichern und visuell markieren
             if(cosine < 0.15)
             {
-                corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]); 
+                corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]);
             }
         }
     }
@@ -185,7 +187,7 @@ int main(int argc, char *argv[])
     for(unsigned int i = 0; i < contours.size(); i++)
     {
         cv::Scalar color = CV_RGB(0,100,0);
-        cv::drawContours(imgCont, corners, i, color, 5, CV_AA);
+        cv::drawContours(imgCont, corners, i, color, 2, CV_AA);
     }
 
     // Ecken zeichnen
@@ -196,6 +198,12 @@ int main(int argc, char *argv[])
             cv::circle(imgCont, corners[i][j], 8, CV_RGB(255,0,0), 2, CV_AA);
         }
     }
+
+
+    cv::imshow("Kontur", imgCont);
+    cv::waitKey(0);
+    return 0;
+
 
     // achtung: wüüüüüüüst.
     // Konturen zerschneiden in jeweils vier Teilkonturen,
@@ -278,7 +286,7 @@ int main(int argc, char *argv[])
         for(unsigned int j = 0; j < 4; j++)
         {
             double dist = cv::pointPolygonTest(cv::Mat(corners[i]), sideCentroids[i][j], true);
-            if(std::fabs(dist) < 5)
+            if(std::fabs(dist) < 3)
             {
                 // wenn praktisch auf der Linie -> wir als gerade Kannte angenommen = Peutral
                 genders[i].push_back(0);
@@ -306,13 +314,14 @@ int main(int argc, char *argv[])
 
 
     // Mouse einlesen und geklickte Seitenwand bestimmen
-    cv::setMouseCallback( "original", onMouse, 0/*, &contours */ );
+    cv::setMouseCallback( "original", onMouse, 0);    //, &contours
 
 
     // Vergleich von sides[0][0] mit den anderen Puzzleteilen.
-    const unsigned int puzzle = 3;
-    const unsigned int side = 2;
+    const unsigned int puzzle = 0;
+    const unsigned int side = 3;
     double maxResult = 0, minResult = 999999;
+    unsigned int maxElement[2] = {0, 0};
     std::vector<std::vector<double> > results;
     for(unsigned int i = 0; i < sidesFiltered.size(); i++)
     {
@@ -329,6 +338,11 @@ int main(int argc, char *argv[])
             {
                 results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[puzzle][side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
                 maxResult = std::max(maxResult, results[i][j]);
+                if(maxResult == results[i][j])
+                {
+                    maxElement[0] = i;
+                    maxElement[1] = j;
+                }
                 minResult = std::min(minResult, results[i][j]);
             }
             else
@@ -370,11 +384,36 @@ int main(int argc, char *argv[])
                 double value = (results[i][j] - minResult) / (maxResult - minResult);
                 value = (255-50)*value + 50;
                 cv::Scalar color = CV_RGB(0, value, 0);
-                cv::drawContours(imgContSimilar, temp, j, color, 10, 8);
+                cv::drawContours(imgContSimilar, temp, j, color, 10, CV_AA);
                 std::cout << "-> Puzzle piece " << i << ", side " << j << ": " << results[i][j] << std::endl;
             }
         }
     }
+
+
+    // Zeichnen einer Bezierlinie vom einen Puzzleteil zum anderen.
+    // Bezier Startkurven-Faktor - abhängig von der Gesamtdistanz:
+    //cv::Point start = sideCentroids[puzzle][side];
+    cv::Point start = (sides[puzzle][side][sides[puzzle][side].size()-1] - sides[puzzle][side][0])*0.5;
+    start += sides[puzzle][side][0];
+    cv::Point end = (sides[maxElement[0]][maxElement[1]][sides[maxElement[0]][maxElement[1]].size()-1] - sides[maxElement[0]][maxElement[1]][0])*0.5;
+    end += sides[maxElement[0]][maxElement[1]][0];
+    //cv::Point end = sideCentroids[maxElement[0]][maxElement[1]];
+    //cv::Point end = sideCentroids[maxElement[0]][maxElement[1]];
+    double curveFactor = norm(end - start)/2;
+
+    // Vektor beim Basispuzzleteil:
+    cv::Point startVector = start - sideCentroids[puzzle][(side + 2)%4];
+    startVector *= curveFactor/cv::norm(startVector);
+
+    // Vektor beim Zeilpuzzleteil:
+    cv::Point endVector = end - sideCentroids[maxElement[0]][(maxElement[1] + 2)%4];
+    endVector *= curveFactor/cv::norm(endVector);
+
+    cv::Path2D bezierLine;
+    bezierLine.restart(start.x, start.y);
+    bezierLine.curveTo(start + startVector, end + endVector, end);
+    cv::drawPath2D(imgContSimilar, bezierLine, CV_RGB(0,0,240), -1, 8, CV_AA);
 
     // Fenster erstellen
     cv::namedWindow("Kontur", 0);
