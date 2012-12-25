@@ -113,10 +113,9 @@ int main(int argc, char *argv[])
     //cv::RNG rng(12345);
     for(unsigned int i = 0; i< contours.size(); i++)
     {
-        // Kontur zeichnen
         //cv::Scalar color = cv::Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));   // zufallsfarben
         cv::Scalar color = cv::Scalar(255,50,0);
-        cv::drawContours(imgCont, contours, i, color, 10, 8);
+        cv::drawContours(imgCont, contours, i, color, 4, 8);
     }
 
     // Konturen filtern
@@ -136,8 +135,6 @@ int main(int argc, char *argv[])
 
     // Ecken erkennen
     std::vector<std::vector<cv::Point> > corners;
-    corners.clear();
-
     for(unsigned int i = 0; i < contours.size(); i++)
     {
         corners.push_back(std::vector<cv::Point>());
@@ -152,10 +149,24 @@ int main(int argc, char *argv[])
             // wenn Winkel > 81°, als Ecke abspeichern und visuell markieren
             if(cosine < 0.15)
             {
-                corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]);
-                //std::cout << "figure " << i << ": " << pointsApprox[i][(j+1)%pointsApprox[i].size()].x << ' ' << pointsApprox[i][(j+1)%pointsApprox[i].size()].y << std::endl;
-                cv::ellipse(imgCont, pointsApprox[i][(j+1)%pointsApprox[i].size()], cv::Size(10,10), 0, 0, 360, cv::Scalar(0,0,255), 2, CV_AA);
+                corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]); 
             }
+        }
+    }
+
+    // Grundrechteck zeichnen
+    for(unsigned int i = 0; i < contours.size(); i++)
+    {
+        cv::Scalar color = cv::Scalar(0,100,0);
+        cv::drawContours(imgCont, corners, i, color, 5, CV_AA);
+    }
+
+    // Ecken zeichnen
+    for(unsigned int i = 0; i < corners.size(); i++)
+    {
+        for(unsigned int j = 0; j < corners[i].size(); j++)
+        {
+            cv::circle(imgCont, corners[i][j], 8, cv::Scalar(0,0,255), 2, CV_AA);
         }
     }
 
@@ -209,6 +220,31 @@ int main(int argc, char *argv[])
     }
     // Mouse einlesen und geklickte Seitenwand bestimmen
     cv::setMouseCallback( "original", onMouse, 0, &contours );
+
+    // Seitenwandschwerpunkte finden
+    // (eigentlich kein Schwerpunkt, sondern der Mittelpunkt des
+    // minimalen umschliessenden Rechtecks einer Seitenwand)
+    std::vector<std::vector<cv::Point> > sideCentroids;
+    for(unsigned int i = 0; i < sides.size(); i++)
+    {
+        sideCentroids.push_back(std::vector<cv::Point>());
+        for(unsigned int j = 0; j < 4; j++)
+        {
+            sideCentroids[i].push_back(cv::Point());
+            cv::RotatedRect minRect;
+            minRect = cv::minAreaRect(sides[i][j]);
+            sideCentroids[i][j] = minRect.center;
+        }
+    }
+
+    // Seitenwandschwerpunkte zeichnen
+    for(unsigned int i = 0; i < sideCentroids.size(); i++)
+    {
+        for(unsigned int j = 0; j < sideCentroids[i].size(); j++)
+        {
+            cv::circle(imgCont, sideCentroids[i][j], 5, cv::Scalar(0,255,255), CV_FILLED, CV_AA);
+        }
+    }
 
     // Vergleich von walls[0][0] mit den anderen Puzzleteilen.
     std::vector<std::vector<double> > results;
