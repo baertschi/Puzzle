@@ -45,7 +45,7 @@ static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Poin
     }
     mouse_x = x;
     mouse_y = y;
-    std::cout << "Button Cklick" << x << y << std::endl;
+    std::cout << "Button Cklick   x: " << x << " y: " << y << std::endl;
 
 }
 
@@ -207,8 +207,7 @@ int main(int argc, char *argv[])
 
 
     cv::imshow("Kontur", imgCont);
-    cv::waitKey(0);
-    return 0;
+
 
 
     // achtung: wüüüüüüüst.
@@ -323,21 +322,49 @@ int main(int argc, char *argv[])
         // Mouse einlesen und geklickte Seitenwand bestimmen
         cv::setMouseCallback( "original", onMouse, 0);    //, &contours
 
-        double distance;
+        double distance, dist_side, piece, piece_side, mindlist = -100;
         cv::Point2i mouse_point;
         mouse_point.x = mouse_x;
         mouse_point.y = mouse_y;
         // Vergleich mit den Puzzleteilen
         for(unsigned int k = 0; k < contours.size(); k++)
         {
-
             distance = cv::pointPolygonTest(contours[k],mouse_point, true);
             std::cout << "Distanz " << distance << ", side " << k << std::endl;
+            if(distance >= 0)
+            {
+                piece = k;
+                break;
+            }
+            else if(distance > mindlist)        // Grösser weis distanz einen negativen wert hat für Klicks ausserhalb des Teilchens
+            {
+                mindlist = distance;
+                piece = k;
+            }
         }
+        // Seite erkennen
+        mindlist = 100;
+        for(unsigned int k = 0; k < 4; k++)
+        {
+            dist_side = cv::norm(mouse_point-sideCentroids[piece][k]);
+
+            std::cout << "Distanz " << dist_side << ", side " << k << std::endl;
+            if(dist_side < mindlist)
+            {
+                piece_side = k;
+                mindlist = dist_side;
+            }
+        }
+      //  std::cout << "Piece: "  << piece << " Side Selected " << piece_side <<  std::endl;
 
         // Vergleich von sides[0][0] mit den anderen Puzzleteilen.
-        const unsigned int puzzle = 0;
-        const unsigned int side = 3;
+        /*const*/ unsigned int puzzle = 0;
+        /*const*/ unsigned int side = 3;
+        // Vergleichbare Seite übergeben
+        puzzle = piece;
+        side = piece_side;
+
+
         double maxResult = 0, minResult = 999999;
         unsigned int maxElement[2] = {0, 0};
         std::vector<std::vector<double> > results;
