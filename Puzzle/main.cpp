@@ -9,6 +9,7 @@
 
 // Globale Variablen
 int mouse_x, mouse_y;
+bool mouse_flag = false;
 
 // Helper Funktion:
 // Cosinus des Zwischenwinkels von Vektor pt0->pt1 und Vektor pt0->pt2
@@ -47,6 +48,7 @@ static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Poin
     mouse_y = y;
     std::cout << "Button Cklick   x: " << x << " y: " << y << std::endl;
 
+    mouse_flag = true;
 }
 
 int main(int argc, char *argv[])
@@ -76,8 +78,12 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // Originalbild anzeigen
+    // Fenster erstellen
+    cv::namedWindow("Kontur", 0);
+    cv::namedWindow("Aehnlichkeit", 0);
     cv::namedWindow("original", 0);
+
+    // Originalbild anzeigen
     cv::imshow("original", img);
 
     // Grauwert Bild erzeugen
@@ -283,6 +289,10 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Konturen, Grundrechtecke und Schwerpunkte anzeigen
+    cv::imshow("Kontur", imgCont);
+
+
     // Gender finden: positiv = 1, negativ = -1, neutral = 0
     std::vector<std::vector<int> > genders;
     for(unsigned int i = 0; i < sideCentroids.size(); i++)
@@ -317,12 +327,29 @@ int main(int argc, char *argv[])
         }
     }
 
+
+    // Mouse einlesen und geklickte Seitenwand bestimmen
+    cv::setMouseCallback( "original", onMouse, 0);    //, &contours
+
     while(1)
     {
-        // Mouse einlesen und geklickte Seitenwand bestimmen
-        cv::setMouseCallback( "original", onMouse, 0);    //, &contours
+        char key;
+        // warten, bis mit der Maus geklickt wird
+        while(!mouse_flag && key != 27)
+        {
+            key = cv::waitKey(1);
 
-        double distance, dist_side, piece, piece_side, mindlist = -100;
+        }
+        mouse_flag = false;
+
+        // wenn jedoch ESC gedrückt wurde, endlos-loop abbrechen.
+        if(key == 27)
+        {
+            break;
+        }
+
+        double distance, dist_side, mindlist = -100;
+        unsigned int piece, piece_side;
         cv::Point2i mouse_point;
         mouse_point.x = mouse_x;
         mouse_point.y = mouse_y;
@@ -355,23 +382,17 @@ int main(int argc, char *argv[])
                 mindlist = dist_side;
             }
         }
-      //  std::cout << "Piece: "  << piece << " Side Selected " << piece_side <<  std::endl;
-
-        // Vergleich von sides[0][0] mit den anderen Puzzleteilen.
-        /*const*/ unsigned int puzzle = 0;
-        /*const*/ unsigned int side = 3;
-        // Vergleichbare Seite übergeben
-        puzzle = piece;
-        side = piece_side;
+        //  std::cout << "Piece: "  << piece << " Side Selected " << piece_side <<  std::endl;
 
 
+        // Vergleich der gewählten Seitenwand mit den anderen Puzzleteilen.
         double maxResult = 0, minResult = 999999;
         unsigned int maxElement[2] = {0, 0};
         std::vector<std::vector<double> > results;
         for(unsigned int i = 0; i < sidesFiltered.size(); i++)
         {
             results.push_back(std::vector<double>());
-            if(i == puzzle)
+            if(i == piece)
             {
                 // wenn das basis-Puzzleteil dran ist, skippen.
                 continue;
@@ -379,9 +400,9 @@ int main(int argc, char *argv[])
 
             for(unsigned int j = 0; j < 4; j++)
             {
-                if(genders[puzzle][side] + genders[i][j] == 0)
+                if(genders[piece][piece_side] + genders[i][j] == 0)
                 {
-                    results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[puzzle][side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
+                    results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[piece][piece_side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
                     maxResult = std::max(maxResult, results[i][j]);
                     if(maxResult == results[i][j])
                     {
@@ -409,12 +430,12 @@ int main(int argc, char *argv[])
 
         // Zeichnen der Übereinstimmung
         std::vector<std::vector<cv::Point> > temp;
-        temp = sidesFiltered[puzzle];
-        cv::drawContours(imgContSimilar, temp, side, CV_RGB(255,0,0), 10, 8);
-        std::cout << std::endl << "Puzzle piece " << puzzle << ", side " << side << " compared to:" << std::endl;
+        temp = sidesFiltered[piece];
+        cv::drawContours(imgContSimilar, temp, piece_side, CV_RGB(255,0,0), 10, 8);
+        std::cout << std::endl << "Puzzle piece " << piece << ", side " << piece_side << " compared to:" << std::endl;
         for(unsigned int i = 0; i < sidesFiltered.size(); i++)
         {
-            if(i == puzzle)
+            if(i == piece)
             {
                 // wenn das basis-Puzzleteil dran ist, skippen.
                 continue;
@@ -439,8 +460,8 @@ int main(int argc, char *argv[])
         // Zeichnen einer Bezierlinie vom einen Puzzleteil zum anderen.
         // Bezier Startkurven-Faktor - abhängig von der Gesamtdistanz:
         //cv::Point start = sideCentroids[puzzle][side];
-        cv::Point start = (sides[puzzle][side][sides[puzzle][side].size()-1] - sides[puzzle][side][0])*0.5;
-        start += sides[puzzle][side][0];
+        cv::Point start = (sides[piece][piece_side][sides[piece][piece_side].size()-1] - sides[piece][piece_side][0])*0.5;
+        start += sides[piece][piece_side][0];
         cv::Point end = (sides[maxElement[0]][maxElement[1]][sides[maxElement[0]][maxElement[1]].size()-1] - sides[maxElement[0]][maxElement[1]][0])*0.5;
         end += sides[maxElement[0]][maxElement[1]][0];
         //cv::Point end = sideCentroids[maxElement[0]][maxElement[1]];
@@ -448,7 +469,7 @@ int main(int argc, char *argv[])
         double curveFactor = norm(end - start)/2;
 
         // Vektor beim Basispuzzleteil:
-        cv::Point startVector = start - sideCentroids[puzzle][(side + 2)%4];
+        cv::Point startVector = start - sideCentroids[piece][(piece_side + 2)%4];
         startVector *= curveFactor/cv::norm(startVector);
 
         // Vektor beim Zeilpuzzleteil:
@@ -460,17 +481,8 @@ int main(int argc, char *argv[])
         bezierLine.curveTo(start + startVector, end + endVector, end);
         cv::drawPath2D(imgContSimilar, bezierLine, CV_RGB(0,0,240), -1, 8, CV_AA);
 
-        // Fenster erstellen
-        cv::namedWindow("Kontur", 0);
-        cv::namedWindow("Aehnlichkeit", 0);
 
-        // Bild anzeigen
-        cv::imshow("Kontur", imgCont);
         cv::imshow("Aehnlichkeit", imgContSimilar);
-
-        // Warten auf einen Tastendruck
-        cv::waitKey(0);
-
     }
 
     // wär gloub no suber weme d fänster würd destroye, het aber d funktion nid kennt
@@ -486,5 +498,5 @@ int main(int argc, char *argv[])
     //cv::ReleaseImage(imgGreyBlure);
     //cv::ReleaseImage(imgGreyHist);
 
-
+    return(0);
 }
