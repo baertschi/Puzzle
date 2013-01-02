@@ -88,9 +88,9 @@ void MainWindow::imageProcessing()
 
         // Binarisieren
         cv::Mat imgBin;
-        cv::threshold(imgGreyBlur, imgBin, cv::mean(imgGreyBlur)[0]-10, 255, cv::THRESH_BINARY);
+       // cv::threshold(imgGreyBlur, imgBin, cv::mean(imgGreyBlur)[0]-10, 255, cv::THRESH_BINARY);
 
-        //cv::adaptiveThreshold(imgGreyBlur, imgBin,255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,2001,10);
+        cv::adaptiveThreshold(imgGreyBlur, imgBin,255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,2001,10);
         cv::namedWindow("bin", 0);                  // Für debugging
         cv::imshow("bin", imgBin);                  // Für debugging
 
@@ -326,7 +326,7 @@ void MainWindow::imageProcessing()
                 double dist = cv::pointPolygonTest(cv::Mat(corners[i]), sideCentroids[i][j], true);
                 if(std::fabs(dist) < 3)
                 {
-                    // wenn praktisch auf der Linie -> wir als gerade Kannte angenommen = Peutral
+                    // wenn praktisch auf der Linie -> wir als gerade Kante angenommen = Neutral
                     genders[i].push_back(0);
                 }
                 else
