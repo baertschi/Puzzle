@@ -178,6 +178,46 @@ void MainWindow::imageProcessing()
             }
         }
 
+        // Wenn nicht überall 4 Ecken gefunden wurden, die konturen entfernen, die nicht 4 Ecken haben.
+        // Grund dafür könnte sein:
+        // - schlechte Binarisierung (nicht das ganze Puzzleteil erwischt)
+        // - Ecke war abgerundet -> die Funktion approxPolyDP ha zwei Teil-Ecken daraus gemacht
+        // - Die Ecke war nicht genügend rechtwinklig --> Threshold bei Zeile 173
+        for(unsigned int i = 0; i < corners.size(); i++)
+        {
+            if(corners[i].size() != 4)
+            {
+                // Text hinzufügen
+                int baseLine = 0;
+                cv::Size textSize = cv::getTextSize("not 4 corners found", cv::FONT_HERSHEY_COMPLEX, 1, 2, &baseLine);
+                cv::Point textPoint = cv::minAreaRect(contours[i]).center;
+                cv::putText(imgCont, "not 4 corners found", textPoint - cv::Point(textSize.width/2, 0), cv::FONT_HERSHEY_COMPLEX, 1, CV_RGB(240,240,240), 2);
+
+                // Gesamte Kontur entfernen
+                corners.erase(corners.begin() + i);
+                contours.erase(contours.begin() + i);
+            }
+        }
+
+        // Wenn jetzt keine einzige Kontur mehr drin ist, Melden und abbrechen
+        if(corners.size() == 0)
+        {
+            // Text hinzufügen
+            int baseLine = 0;
+            cv::Size textSize = cv::getTextSize("Error: no corners found at all", cv::FONT_HERSHEY_COMPLEX, 2, 2, &baseLine);
+            cv::Point textPoint(imgCont.size().width/2, imgCont.size().height/2);
+            cv::putText(imgCont, "Error: no corners found at all", textPoint - cv::Point(textSize.width/2, textSize.height/2), cv::FONT_HERSHEY_COMPLEX, 2, CV_RGB(255,255,255), 2);
+            cv::putText(imgCont, "press any key to exit", textPoint + cv::Point(textSize.width/2, textSize.height/2), cv::FONT_HERSHEY_COMPLEX, 2, CV_RGB(255,255,255), 2);
+
+            // Dannach auf Tastendruck warten und abbrechen.
+            cv::waitKey(0);
+            // Konsolenfenster schliessen
+            cv::destroyAllWindows();
+            // Gui-Anwendung schliessen
+            close();
+            return;
+        }
+
         // Grundrechteck zeichnen
         for(unsigned int i = 0; i < contours.size(); i++)
         {
@@ -480,7 +520,7 @@ void MainWindow::imageProcessing()
 
 void MainWindow::closeProg()
 {
-    if(close_flag = true)
+    if(close_flag == true)
     {
         close();
     }
