@@ -149,7 +149,7 @@ void MainWindow::imageProcessing()
         std::vector<cv::Point> pointApproxTemp;
         for(unsigned int i = 0; i < contours.size(); i++)
         {
-            cv::approxPolyDP(cv::Mat(contours[i]), pointApproxTemp, 10, true);
+            cv::approxPolyDP(cv::Mat(contours[i]), pointApproxTemp, 8, true);
             pointsApprox.push_back(pointApproxTemp);
 
             // gefilterte Kontur zeichnen
@@ -177,6 +177,15 @@ void MainWindow::imageProcessing()
                 {
                     corners[i].push_back(pointsApprox[i][(j+1)%pointsApprox[i].size()]);
                 }
+            }
+        }
+
+        // Ecken zeichnen
+        for(unsigned int i = 0; i < corners.size(); i++)
+        {
+            for(unsigned int j = 0; j < corners[i].size(); j++)
+            {
+                cv::circle(imgCont, corners[i][j], 8, CV_RGB(255,0,0), 2, CV_AA);
             }
         }
 
@@ -220,22 +229,12 @@ void MainWindow::imageProcessing()
             return;
         }
 
-        // Grundrechteck zeichnen
+        // Grundrechtecke zeichnen
         for(unsigned int i = 0; i < contours.size(); i++)
         {
             cv::Scalar color = CV_RGB(0,100,0);
             cv::drawContours(imgCont, corners, i, color, 2, CV_AA);
         }
-
-        // Ecken zeichnen
-        for(unsigned int i = 0; i < corners.size(); i++)
-        {
-            for(unsigned int j = 0; j < corners[i].size(); j++)
-            {
-                cv::circle(imgCont, corners[i][j], 8, CV_RGB(255,0,0), 2, CV_AA);
-            }
-        }
-
 
         cv::imshow("Kontur", imgCont);
 
