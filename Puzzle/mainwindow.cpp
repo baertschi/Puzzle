@@ -63,10 +63,10 @@ void MainWindow::imageProcessing()
         // Fenster erstellen
         cv::namedWindow("Kontur", 0);
         cv::namedWindow("Aehnlichkeit", 0);
-        cv::namedWindow("original", 0);
+        cv::namedWindow("Originalbild", 0);
 
         // Originalbild anzeigen
-        cv::imshow("original", img);
+        cv::imshow("Originalbild", img);
 
         // Grauwert Bild erzeugen
         cv::Mat imgGrey;
@@ -74,12 +74,14 @@ void MainWindow::imageProcessing()
         //cv::namedWindow("grey", 0);                 // Für debugging
         //cv::imshow("grey", imgGrey);                // Für debugging
 
-       /* // Histogramm ausgleichen
+        /*
+        // Histogramm ausgleichen
         cv::Mat imgGreyHist;
         cv::equalizeHist(imgGrey,imgGreyHist);
         cv::namedWindow("hist", 0);
         cv::imshow("hist", imgGreyHist);
-*/
+        */
+
         // Weichzeichnen (vor-entrauschen)
         cv::Mat imgGreyBlur;
         cv::blur(imgGrey, imgGreyBlur, cv::Size(3,3));
@@ -88,11 +90,11 @@ void MainWindow::imageProcessing()
 
         // Binarisieren
         cv::Mat imgBin;
-       // cv::threshold(imgGreyBlur, imgBin, cv::mean(imgGreyBlur)[0]-10, 255, cv::THRESH_BINARY);
+        //cv::threshold(imgGreyBlur, imgBin, cv::mean(imgGreyBlur)[0]-10, 255, cv::THRESH_BINARY);
 
         cv::adaptiveThreshold(imgGreyBlur, imgBin,255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,2001,10);
-        cv::namedWindow("bin", 0);                  // Für debugging
-        cv::imshow("bin", imgBin);                  // Für debugging
+        //cv::namedWindow("bin", 0);                  // Für debugging
+        //cv::imshow("bin", imgBin);                  // Für debugging
 
         // Entrauschen: 2x öffnen mit 3x3 Kernel
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3), cv::Point(1, 1));
@@ -106,7 +108,7 @@ void MainWindow::imageProcessing()
         cv::Mat imgBinTemp = imgBin;
         std::vector<std::vector<cv::Point> > contours;
         cv::findContours(imgBinTemp, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-         qDebug() << "gefundene konturen: " << contours.size();
+        qDebug() << "gefundene konturen: " << contours.size();
         //std::cout << "gefundene konturen: " << contours.size() << std::endl;
 
         // Gesamte Liste mit den Konturen durchgehen: zu kurze Konturen löschen
@@ -130,8 +132,8 @@ void MainWindow::imageProcessing()
             cv::Scalar color = CV_RGB(edge_distributed_rnd(), edge_distributed_rnd(), edge_distributed_rnd());
             cv::drawContours(imgBin, contours, i, color, -1, 8);
         }
-        cv::namedWindow("Binär", 0);
-        cv::imshow("Binär", imgBin);
+        cv::namedWindow("Puzzleteile", 0);
+        cv::imshow("Puzzleteile", imgBin);
 
         // Zeichnen jeder Kontur
         cv::Mat imgCont = img.clone();
@@ -324,7 +326,7 @@ void MainWindow::imageProcessing()
             for(unsigned int j = 0; j < 4; j++)
             {
                 double dist = cv::pointPolygonTest(cv::Mat(corners[i]), sideCentroids[i][j], true);
-                if(std::fabs(dist) < 3)
+                if(std::fabs(dist) < 5)
                 {
                     // wenn praktisch auf der Linie -> wir als gerade Kante angenommen = Neutral
                     genders[i].push_back(0);
@@ -352,7 +354,7 @@ void MainWindow::imageProcessing()
 
 
         // Mouse einlesen und geklickte Seitenwand bestimmen
-        cv::setMouseCallback( "original", onMouse, 0);    //, &contours
+        cv::setMouseCallback( "Originalbild", onMouse, 0);    //, &contours
 
         while(1)
         {
@@ -455,9 +457,10 @@ void MainWindow::imageProcessing()
             }
 
             // Zeichnen der Übereinstimmung
-            std::vector<std::vector<cv::Point> > temp;
-            temp = sidesFiltered[piece];
-            cv::drawContours(imgContSimilar, temp, piece_side, CV_RGB(255,0,0), 10, 8);
+            std::vector<cv::Point> side = sidesFiltered[piece][piece_side];
+            const cv::Point *pts = (const cv::Point*) cv::Mat(side).data;
+            int npts = cv::Mat(side).rows;
+            cv::polylines(imgContSimilar, &pts,&npts, 1, false, CV_RGB(255,0,0), 10, CV_AA);
             std::cout << std::endl << "Puzzle piece " << piece << ", side " << piece_side << " compared to:" << std::endl;
             for(unsigned int i = 0; i < sidesFiltered.size(); i++)
             {
@@ -472,11 +475,13 @@ void MainWindow::imageProcessing()
                     if(results[i][j] != 0)
                     {
                         // wenn das Puzzleteil überhaupt übereinstimmt, farbsensitiv Seitenwände zeichnen
-                        temp = sidesFiltered[i];
+                        std::vector<cv::Point> side = sidesFiltered[i][j];
                         double value = (results[i][j] - minResult) / (maxResult - minResult);
-                        value = (255-50)*value + 50;
-                        cv::Scalar color = CV_RGB(0, value, 0);
-                        cv::drawContours(imgContSimilar, temp, j, color, 10, CV_AA);
+                        value = (255-30)*value + 30;
+                        cv::Scalar color = CV_RGB(30, value, 30);
+                        const cv::Point *pts = (const cv::Point*) cv::Mat(side).data;
+                        int npts = cv::Mat(side).rows;
+                        cv::polylines(imgContSimilar, &pts,&npts, 1, false, color, 10, CV_AA);
                         std::cout << "-> Puzzle piece " << i << ", side " << j << ": " << results[i][j] << std::endl;
                     }
                 }
@@ -505,7 +510,7 @@ void MainWindow::imageProcessing()
             cv::Path2D bezierLine;
             bezierLine.restart(start.x, start.y);
             bezierLine.curveTo(start + startVector, end + endVector, end);
-            cv::drawPath2D(imgContSimilar, bezierLine, CV_RGB(0,0,240), -1, 8, CV_AA);
+            cv::drawPath2D(imgContSimilar, bezierLine, CV_RGB(20,20,255), -1, 10, CV_AA);
 
 
             cv::imshow("Aehnlichkeit", imgContSimilar);

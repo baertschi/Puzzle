@@ -537,24 +537,24 @@ const std::vector<cv::Point2f>&	cv::Path2D::getCoords() const {
 
 #ifdef PATH2D_HAVE_OPENCV
 void cv::Path2D::drawOpenCV(cv::Mat &buffer, const Scalar &lineColor, const Scalar &fillColor, int thickness, int lineType) const {
-    //unsigned int coords_size = coords.size();
 	std::vector<cv::Point> contour;
-	std::vector<std::vector<cv::Point> > contours;
     float X, Y;
 	for (unsigned int i=0; i<coords.size(); ++i) {
         transformPoint2D(this->transform, coords[i].x, coords[i].y, &X, &Y);
         contour.push_back(cv::Point((int)X, (int)Y));
     }
-	contours.push_back(contour);
+    const cv::Point *pts = (const cv::Point*) cv::Mat(contour).data;
+    int npts = cv::Mat(contour).rows;
+
 	if (-1==thickness) {
-		cv::drawContours(buffer, contours, 0, fillColor, CV_FILLED, lineType);
+        cv::polylines(buffer, &pts, &npts, 1, false, fillColor, CV_FILLED, lineType);
 	}
 	else if (0==thickness) {
-		cv::drawContours(buffer, contours, 0, fillColor, CV_FILLED, lineType);
-		cv::drawContours(buffer, contours, 0, lineColor, thickness, lineType);
+        cv::polylines(buffer, &pts,&npts, 1, false, fillColor, CV_FILLED, lineType);
+        cv::polylines(buffer, &pts,&npts, 1, false, lineColor, thickness, lineType);
 	}
 	else
-		cv::drawContours(buffer, contours, 0, lineColor, thickness, lineType);
+        cv::polylines(buffer, &pts,&npts, 1, false, lineColor, thickness, lineType);
 }
 void cv::drawPath2D(cv::Mat &buffer, const Path2D &path2d, const Scalar &lineColor, const Scalar &fillColor, int thickness, int lineType) {
 	path2d.drawOpenCV(buffer, lineColor, fillColor, thickness, lineType);
