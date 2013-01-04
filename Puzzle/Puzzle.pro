@@ -14,8 +14,7 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-           mainwindow.cpp \
-           cvpath2d.cpp
+           mainwindow.cpp
 
 DEFINES += PATH2D_HAVE_OPENCV=1
 
@@ -50,5 +49,4 @@ LIBS += -LC:/OpenCV/OpenCV-2.3.0-bin/lib \
   -lopencv_ts230 \
   -lopencv_video230
 
-HEADERS += cvpath2d.h  \
-           mainwindow.h
+HEADERS += mainwindow.h
