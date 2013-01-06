@@ -53,6 +53,39 @@ static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Poin
     mouse_flag = true;
 }
 
+#define WEIGHT_MATCHSHAPE 0
+#define WEIGHT_LENGTH 100
+#define WEIGHT_ARC 300
+#define WEIGHT_AREA 200
+
+static double compare(std::vector<cv::Point>* basis_side, std::vector<cv::Point>* compare_side)
+{
+    // Hier werden beide Puzzleteile mit verschieden gewichteten Features verglichen
+
+    // Hu-Momente (mit Routine matchShape)
+    double result_matchShapes = cv::matchShapes(*basis_side, *compare_side, CV_CONTOURS_MATCH_I1, 0);
+
+    // Umfang (Ua/|Ua-Ub|)
+    double length_basis = cv::arcLength(*basis_side, false);
+    double length_compare = cv::arcLength(*compare_side, false);
+    double result_length = length_basis / std::fabs(length_basis - length_compare);
+
+    // Tiefe der Ausbuchtung (Ta/|Ta-Tb|)
+    double arc_basis = std::min(cv::minAreaRect(*basis_side).size.height, cv::minAreaRect(*basis_side).size.width);
+    double arc_compare = std::min(cv::minAreaRect(*compare_side).size.height, cv::minAreaRect(*compare_side).size.width);
+    double result_arc = arc_basis / std::fabs(arc_basis - arc_compare);
+
+    // Fläche der Ausbuchtung (angenommen, die geraden Stücke daneben haben keine "Fläche") (Fa/|Fa-Fb|)
+    double area_basis = cv::contourArea(*basis_side);
+    double area_compare = cv::contourArea(*compare_side);
+    double result_area = area_basis / std::fabs(area_basis - area_compare);
+
+    std::cout << result_matchShapes << '\t' << result_length << '\t' << result_arc << '\t' << result_area << std::endl;
+
+    // Gewichten der unterschiedlichen Features
+    return result_matchShapes*WEIGHT_MATCHSHAPE + result_length*WEIGHT_LENGTH + result_arc*WEIGHT_ARC + result_area*WEIGHT_AREA;
+}
+
 /********************************************************************************************************/
 
 
@@ -402,7 +435,7 @@ void MainWindow::imageProcessing()
                     piece = k;
                     break;
                 }
-                else if(distance > mindlist)        // Grösser weis distanz einen negativen wert hat für Klicks ausserhalb des Teilchens
+                else if(distance > mindlist)        // Grösser, weil Distanz einen negativen Wert hat für Klicks ausserhalb des Teilchens
                 {
                     mindlist = distance;
                     piece = k;
@@ -441,10 +474,12 @@ void MainWindow::imageProcessing()
                 {
                     if(genders[piece][piece_side] + genders[i][j] == 0)
                     {
-                        // überprüfung der Ähnlichkeit mit matchShapes
-                        results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[piece][piece_side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I1, 0));
-                        // Zusätzliche Überprüfung mit farbe
-                        //cv::invert((abs((sidesFiltered[piece][piece_side]).size() - (sidesFiltered[i][j]).size())),results[i]);
+                        // Überprüfung der Ähnlichkeit mit verschiedenen, gewichteten Features
+                        std::vector<cv::Point> basis_side = cv::Mat(sidesFiltered[piece][piece_side]);
+                        std::vector<cv::Point> compare_side = cv::Mat(sidesFiltered[i][j]);
+                        results[i].push_back(compare(&basis_side, &compare_side));
+
+                        // Zusätzliche Überprüfung mit Farbe
 
                         maxResult = std::max(maxResult, results[i][j]);
                         if(maxResult == results[i][j])
