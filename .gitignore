@@ -17,7 +17,11 @@
 *.pro.user
 
 # Executable folder
-Puzzle-build-desktop/
+#Puzzle-build-desktop/
+
+# Makefiles
+Makefile*
+*moc_*.cpp
 
 # temporary office documents
 *~$*
