@@ -541,12 +541,8 @@ void MainWindow::imageProcessing()
             // Zeichnen einer Bezierlinie vom einen Puzzleteil zum anderen.
             // Bezier Startkurven-Faktor - abhängig von der Gesamtdistanz:
             //cv::Point start = sideCentroids[puzzle][side];
-            cv::Point start = (sides[piece][piece_side][sides[piece][piece_side].size()-1] - sides[piece][piece_side][0])*0.5;
-            start += sides[piece][piece_side][0];
-            cv::Point end = (sides[maxElement[0]][maxElement[1]][sides[maxElement[0]][maxElement[1]].size()-1] - sides[maxElement[0]][maxElement[1]][0])*0.5;
-            end += sides[maxElement[0]][maxElement[1]][0];
-            //cv::Point end = sideCentroids[maxElement[0]][maxElement[1]];
-            //cv::Point end = sideCentroids[maxElement[0]][maxElement[1]];
+            cv::Point start = sides[piece][piece_side][(unsigned int)(sides[piece][piece_side].size()/2)];
+            cv::Point end = sides[maxElement[0]][maxElement[1]][(unsigned int)(sides[maxElement[0]][maxElement[1]].size()/2)];
             double curveFactor = norm(end - start)/2;
 
             // Vektor beim Basispuzzleteil:
@@ -561,6 +557,11 @@ void MainWindow::imageProcessing()
             bezierLine.restart(start.x, start.y);
             bezierLine.curveTo(start + startVector, end + endVector, end);
             cv::drawPath2D(imgContSimilar, bezierLine, CV_RGB(20,20,255), -1, 10, CV_AA);
+
+            // Pfeil zeichnen
+            cv::Point orthogonal = cv::Point(-endVector.y, endVector.x)*30*(1/cv::norm(endVector));
+            cv::line(imgContSimilar, end, end + endVector*70*(1/cv::norm(endVector)) + orthogonal, CV_RGB(20,20,255), 10, CV_AA);
+            cv::line(imgContSimilar, end, end + endVector*70*(1/cv::norm(endVector)) - orthogonal, CV_RGB(20,20,255), 10, CV_AA);
 
 
             cv::imshow("Aehnlichkeit", imgContSimilar);
