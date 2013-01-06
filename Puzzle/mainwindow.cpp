@@ -165,7 +165,7 @@ void MainWindow::imageProcessing()
         std::vector<cv::Point> pointApproxTemp;
         for(unsigned int i = 0; i < contours.size(); i++)
         {
-            cv::approxPolyDP(cv::Mat(contours[i]), pointApproxTemp, 8, true);
+            cv::approxPolyDP(cv::Mat(contours[i]), pointApproxTemp, (int)(siteLength/100 + 0.5), true);
             pointsApprox.push_back(pointApproxTemp);
 
             // gefilterte Kontur zeichnen
@@ -367,7 +367,6 @@ void MainWindow::imageProcessing()
             }
         }
 
-
         // Mouse einlesen und geklickte Seitenwand bestimmen
         cv::setMouseCallback( "Originalbild", onMouse, 0);    //, &contours
 
@@ -443,7 +442,7 @@ void MainWindow::imageProcessing()
                     if(genders[piece][piece_side] + genders[i][j] == 0)
                     {
                         // überprüfung der Ähnlichkeit mit matchShapes
-                        results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[piece][piece_side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
+                        results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[piece][piece_side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I1, 0));
                         // Zusätzliche Überprüfung mit farbe
                         //cv::invert((abs((sidesFiltered[piece][piece_side]).size() - (sidesFiltered[i][j]).size())),results[i]);
 
