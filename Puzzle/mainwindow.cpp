@@ -54,9 +54,9 @@ static void onMouse( int event, int x, int y, int, void* /* std::vector<cv::Poin
 }
 
 #define WEIGHT_MATCHSHAPE 0
-#define WEIGHT_LENGTH 100
-#define WEIGHT_ARC 300
-#define WEIGHT_AREA 200
+#define WEIGHT_LENGTH 1
+#define WEIGHT_ARC 1
+#define WEIGHT_AREA 1
 
 static double compare(std::vector<cv::Point>* basis_side, std::vector<cv::Point>* compare_side)
 {
