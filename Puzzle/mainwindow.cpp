@@ -111,13 +111,29 @@ void MainWindow::imageProcessing()
         qDebug() << "gefundene konturen: " << contours.size();
         //std::cout << "gefundene konturen: " << contours.size() << std::endl;
 
+        // Seitenwand Grösse abschätzen
+        double puzLength = 0, maxLength = 0;
+        for(unsigned int i = 0; i < contours.size(); ++i)
+        {
+            puzLength = cv::arcLength(cv::Mat(contours[i]), true);
+
+            // Maximum Finden
+            if(puzLength > maxLength)
+            {
+                maxLength = puzLength;
+            }
+        }
+        // Seitenlänge abschätzen
+        double siteLength = maxLength / 4;
+        qDebug() << "geschätzte Seitenlänge: " << siteLength;
+
         // Gesamte Liste mit den Konturen durchgehen: zu kurze Konturen löschen
         for(unsigned int i = 0; i < contours.size(); ++i)
         {
             double featArcLength = cv::arcLength(cv::Mat(contours[i]), true);
 
             // Kontur aus der Liste löschen sofern sie zu kurz ist
-            if(featArcLength < 50)
+            if(featArcLength < siteLength/10)
             {
                 contours.erase(contours.begin()+i);  // Kontur löschen
                 i -= 1;  // Index auf die letzte Kontur zeigen lassen
@@ -429,7 +445,8 @@ void MainWindow::imageProcessing()
                         // überprüfung der Ähnlichkeit mit matchShapes
                         results[i].push_back(1/cv::matchShapes(cv::Mat(sidesFiltered[piece][piece_side]), cv::Mat(sidesFiltered[i][j]), CV_CONTOURS_MATCH_I3, 0));
                         // Zusätzliche Überprüfung mit farbe
-                        //results[i].push_back(abs((sidesFiltered[piece][piece_side]).size() - (sidesFiltered[i][j]).size()));
+                        //cv::invert((abs((sidesFiltered[piece][piece_side]).size() - (sidesFiltered[i][j]).size())),results[i]);
+
                         maxResult = std::max(maxResult, results[i][j]);
                         if(maxResult == results[i][j])
                         {
