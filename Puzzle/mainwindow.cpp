@@ -373,7 +373,7 @@ void MainWindow::imageProcessing()
 
         while(1)
         {
-            char key;
+            char key = 0;
             // warten, bis mit der Maus geklickt wird
             while(!mouse_flag && !close_flag && key != 27)
             {
